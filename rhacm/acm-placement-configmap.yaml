@@ -1,0 +1,15 @@
+# This ConfigMap teaches the Argo CD ApplicationSet "clusterDecisionResource"
+# generator how to read RHACM PlacementDecision objects. Without it, the
+# generator in bootstrap/doom-applicationset.yaml has nothing to resolve and
+# no Applications are produced. The name "acm-placement" is referenced by the
+# ApplicationSet's configMapRef.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: acm-placement
+  namespace: openshift-gitops
+data:
+  apiVersion: cluster.open-cluster-management.io/v1beta1
+  kind: placementdecisions
+  statusListKey: decisions
+  matchKey: clusterName

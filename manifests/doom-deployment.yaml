@@ -1,3 +1,17 @@
+# The DOOM game container, exposed via a Route.
+#
+# KEY FIX vs. the original: the Route's port.targetPort pointed at 8080, but a
+# Route must reference the SERVICE's port, which is 80. The service port is now
+# named "http" and the Route references it by name (robust against future
+# changes). The mismatch would otherwise surface as a 503 from the router.
+#
+# IMPORTANT - IMAGE CONTRACT: ghcr.io/greg-jones/web-doom:latest is a
+# PLACEHOLDER. For the end-to-end demo to record times, the image must:
+#   1) read the DOOM_API_URL env var, and
+#   2) HTTP POST application/json {"player_id": "...", "level": "...",
+#      "time_seconds": <int>} to it when a level is completed.
+# No stock browser-DOOM image does this - you need a build with that hook.
+# Until then, use test/smoke-test.sh (see README) to prove the API->DB path.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -15,7 +29,7 @@ spec:
     spec:
       containers:
         - name: doom
-          image: ghcr.io/greg-jones/web-doom:latest
+          image: ghcr.io/greg-jones/web-doom:latest  # <-- replace with an image that POSTs to DOOM_API_URL
           ports:
             - containerPort: 8080
           env:
@@ -29,7 +43,8 @@ metadata:
   namespace: doom-demo
 spec:
   ports:
-    - port: 80
+    - name: http
+      port: 80
       targetPort: 8080
   selector:
     app: doom-game
@@ -44,4 +59,4 @@ spec:
     kind: Service
     name: doom-game-service
   port:
-    targetPort: 8080
+    targetPort: http

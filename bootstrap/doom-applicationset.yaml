@@ -1,0 +1,41 @@
+# Replaces the old bootstrap/root-app.yaml.
+#
+# The original used a plain Argo CD Application with destination
+# server: https://kubernetes.default.svc, which ALWAYS deploys to the hub and
+# ignores the RHACM Placement entirely. This ApplicationSet uses the
+# clusterDecisionResource generator so that one Argo CD Application is created
+# per cluster selected by the "deploy-doom-demo" Placement (i.e. every cluster
+# you label demo=doom). {{name}} and {{server}} are filled in from each
+# cluster's registered Argo CD cluster secret.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: doom-demo
+  namespace: openshift-gitops
+spec:
+  generators:
+    - clusterDecisionResource:
+        configMapRef: acm-placement
+        labelSelector:
+          matchLabels:
+            cluster.open-cluster-management.io/placement: deploy-doom-demo
+        requeueAfterSeconds: 30
+  template:
+    metadata:
+      name: 'doom-demo-{{name}}'
+    spec:
+      project: default
+      source:
+        # UPDATE THIS to your fork/repo URL:
+        repoURL: 'https://github.com/<your-username>/doom-gitops-demo.git'
+        targetRevision: HEAD
+        path: manifests
+      destination:
+        server: '{{server}}'
+        namespace: doom-demo
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
