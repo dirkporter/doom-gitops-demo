@@ -29,7 +29,7 @@ spec:
     spec:
       containers:
         - name: doom
-          image: quay.io/knav3/doom-gitops.demo:latest  # <-- replace with an image that POSTs to DOOM_API_URL
+          image: quay.io/knav3/doom-gitops-demo:latest  # <-- replace with an image that POSTs to DOOM_API_URL
           ports:
             - containerPort: 8080
           imagePullPolicy: Always
