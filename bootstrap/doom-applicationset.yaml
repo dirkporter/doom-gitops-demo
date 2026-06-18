@@ -27,7 +27,7 @@ spec:
       project: default
       source:
         # UPDATE THIS to your fork/repo URL:
-        repoURL: 'https://github.com/<your-username>/doom-gitops-demo.git'
+        repoURL: 'https://github.com/dirkporter/doom-gitops-demo.git'
         targetRevision: HEAD
         path: manifests
       destination:
