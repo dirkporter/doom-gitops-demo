@@ -1,0 +1,59 @@
+apiVersion: kubevirt.io/v1
+kind: VirtualMachine
+metadata:
+  name: doom-db-vm
+  namespace: doom-demo
+spec:
+  running: true
+  template:
+    metadata:
+      labels:
+        kubevirt.io/domain: doom-db-vm
+    spec:
+      domain:
+        cpu:
+          cores: 1
+        memory:
+          guest: 2Gi
+        devices:
+          disks:
+            - disk:
+                bus: virtio
+              name: containerdisk
+            - disk:
+                bus: virtio
+              name: cloudinitdisk
+      volumes:
+        - name: containerdisk
+          containerDisk:
+            image: quay.io/containerdisks/centos-stream:9
+        - name: cloudinitdisk
+          cloudInitNoCloud:
+            userData: |
+              #cloud-config
+              user: admin
+              password: Password123
+              chpasswd: { expire: False }
+              ssh_pwauth: True
+              runcmd:
+                - dnf install -y postgresql-server postgresql-contrib
+                - postgresql-setup --initdb
+                - sed -i "s/#listen_addresses = 'localhost'/listen_addresses = '*'/g" /var/lib/pgsql/data/postgresql.conf
+                - echo "host all all 0.0.0.0/0 md5" >> /var/lib/pgsql/data/pg_hba.conf
+                - systemctl start postgresql
+                - systemctl enable postgresql
+                - sudo -u postgres psql -c "CREATE USER doom_admin WITH PASSWORD 'doom_password';"
+                - sudo -u postgres psql -c "CREATE DATABASE doom_stats OWNER doom_admin;"
+                - sudo -u postgres psql -d doom_stats -c "CREATE TABLE level_times (id SERIAL PRIMARY KEY, player_id VARCHAR(100), level_name VARCHAR(50), completion_time_seconds INT, recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: doom-db-service
+  namespace: doom-demo
+spec:
+  ports:
+    - port: 5432
+      targetPort: 5432
+  selector:
+    kubevirt.io/domain: doom-db-vm
