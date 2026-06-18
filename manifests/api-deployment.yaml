@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: doom-api
+  namespace: doom-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: doom-api
+  template:
+    metadata:
+      labels:
+        app: doom-api
+    spec:
+      containers:
+        - name: api
+          image: python:3.9-slim
+          command: ["/bin/bash", "-c"]
+          args:
+            - |
+              pip install flask psycopg2-binary
+              cat << 'EOF' > app.py
+              from flask import Flask, request, jsonify
+              import psycopg2
+              import os
+
+              app = Flask(__name__)
+              DB_HOST = os.getenv("DB_HOST", "doom-db-service")
+
+              def get_db_connection():
+                  return psycopg2.connect(host=DB_HOST, database="doom_stats", user="doom_admin", password="doom_password")
+
+              @app.route('/level-complete', methods=['POST'])
+              def level_complete():
+                  data = request.json
+                  player_id = data.get('player_id', 'anonymous')
+                  level = data.get('level')
+                  seconds = data.get('time_seconds')
+                  
+                  if not level or seconds is None:
+                      return jsonify({"status": "error", "message": "Missing level or time_seconds"}), 400
+                  
+                  conn = get_db_connection()
+                  cur = conn.cursor()
+                  cur.execute(
+                      'INSERT INTO level_times (player_id, level_name, completion_time_seconds) VALUES (%s, %s, %s)', 
+                      (player_id, level, seconds)
+                  )
+                  conn.commit()
+                  cur.close()
+                  conn.close()
+                  return jsonify({"status": "success", "player_id": player_id}), 200
+
+              if __name__ == '__main__':
+                  app.run(host='0.0.0.0', port=8080)
+              EOF
+              python app.py
+          env:
+            - name: DB_HOST
+              value: "doom-db-service"
+          ports:
+            - containerPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: doom-api-service
+  namespace: doom-demo
+spec:
+  ports:
+    - port: 80
+      targetPort: 8080
+  selector:
+    app: doom-api
